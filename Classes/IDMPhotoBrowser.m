@@ -156,9 +156,10 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
         _photos = [NSMutableArray new];
         
         _initalPageIndex = 0;
-        _autoHide = YES;
+        _autoHide = NO;
         
         _displayDoneButton = YES;
+        _alwaysDisplayControls = NO;
         _doneButtonImage = nil;
         
         _displayToolbar = YES;
@@ -1115,7 +1116,7 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
 	// Hide controls when dragging begins
-	[self setControlsHidden:YES animated:YES permanent:NO];
+    [self setControlsHidden:YES animated:YES permanent:NO];
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
@@ -1168,6 +1169,10 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
     // Cancel any timers
     [self cancelControlHiding];
     
+    if(_alwaysDisplayControls) {
+        hidden = NO;
+    }
+    
     // Captions
     NSMutableSet *captionViews = [[NSMutableSet alloc] initWithCapacity:_visiblePages.count];
     for (IDMZoomingScrollView *page in _visiblePages) {
@@ -1209,8 +1214,18 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
 }
 
 - (BOOL)areControlsHidden { return (_toolbar.alpha == 0); }
-- (void)hideControls      { if(_autoHide) [self setControlsHidden:YES animated:YES permanent:NO]; }
-- (void)toggleControls    { [self setControlsHidden:![self areControlsHidden] animated:YES permanent:NO]; }
+- (void)hideControls
+{
+    if (_alwaysDisplayControls) {
+        return;
+    }
+    if(_autoHide) [self setControlsHidden:YES animated:YES permanent:NO];
+}
+
+- (void)toggleControls
+{
+    [self setControlsHidden:![self areControlsHidden] animated:YES permanent:NO];
+}
 
 
 #pragma mark - Properties

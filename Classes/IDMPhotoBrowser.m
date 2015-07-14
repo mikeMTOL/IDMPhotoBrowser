@@ -788,7 +788,7 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
     }
     
     // Close button
-    if(_displayDoneButton && !self.navigationController.navigationBar)
+    if(_displayDoneButton)
         [self.view addSubview:_doneButton];
     
     // Toolbar items & navigation

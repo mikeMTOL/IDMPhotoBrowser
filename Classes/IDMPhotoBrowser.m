@@ -602,6 +602,7 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
     else {
         [_doneButton setImage:_doneButtonImage forState:UIControlStateNormal];
         _doneButton.contentMode = UIViewContentModeScaleAspectFit;
+        _doneButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
     }
     
     UIImage *leftButtonImage = (_leftArrowImage == nil) ?
@@ -1091,7 +1092,7 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
     
     // if ([self isLandscape:orientation]) screenWidth = screenBound.size.height;
     
-    return CGRectMake(screenWidth - 75, 30, 55, 26);
+    return CGRectMake(screenWidth - 60, 29, 55, 26);
 }
 
 - (CGRect)frameForCaptionView:(IDMCaptionView *)captionView atIndex:(NSUInteger)index {

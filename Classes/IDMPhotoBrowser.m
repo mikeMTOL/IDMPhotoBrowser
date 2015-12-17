@@ -14,7 +14,7 @@
 
 #ifndef IDMPhotoBrowserLocalizedStrings
 #define IDMPhotoBrowserLocalizedStrings(key) \
-NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBundle mainBundle] pathForResource:@"IDMPBLocalizations" ofType:@"bundle"]], nil)
+NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBundle bundleForClass: self.class] pathForResource:@"IDMPBLocalizations" ofType:@"bundle"]], nil)
 #endif
 
 // Private
@@ -358,44 +358,23 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
 
 #pragma mark - Animation
 
-- (UIImage*)rotateImageToCurrentOrientation:(UIImage*)image
-{
-    if(UIInterfaceOrientationIsLandscape([UIApplication sharedApplication].statusBarOrientation))
-    {
-        UIImageOrientation orientation = ([UIApplication sharedApplication].statusBarOrientation == UIInterfaceOrientationLandscapeLeft) ?UIImageOrientationLeft : UIImageOrientationRight;
-        
-        UIImage *rotatedImage = [[UIImage alloc] initWithCGImage:image.CGImage
-                                                           scale:1.0
-                                                     orientation:orientation];
-        
-        image = rotatedImage;
-    }
-    
-    return image;
-}
-
 - (void)performPresentAnimation {
     self.view.alpha = 0.0f;
     _pagingScrollView.alpha = 0.0f;
     
     UIImage *imageFromView = _scaleImage ? _scaleImage : [self getImageFromView:_senderViewForAnimation];
-    imageFromView = [self rotateImageToCurrentOrientation:imageFromView];
     
     _senderViewOriginalFrame = [_senderViewForAnimation.superview convertRect:_senderViewForAnimation.frame toView:nil];
     
-    CGRect screenBound = [[UIScreen mainScreen] bounds];
-    CGFloat screenWidth = screenBound.size.width;
-    CGFloat screenHeight = screenBound.size.height;
-    
-    UIView *fadeView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
+    UIView *fadeView = [[UIView alloc] initWithFrame:_applicationWindow.bounds];
     fadeView.backgroundColor = [UIColor clearColor];
     [_applicationWindow addSubview:fadeView];
     
     UIImageView *resizableImageView = [[UIImageView alloc] initWithImage:imageFromView];
     resizableImageView.frame = _senderViewOriginalFrame;
     resizableImageView.clipsToBounds = YES;
-    resizableImageView.contentMode = UIViewContentModeScaleAspectFill;
-    resizableImageView.backgroundColor = [UIColor colorWithWhite:(_useWhiteBackgroundColor) ? 1 : 0 alpha:1];
+    resizableImageView.contentMode = _senderViewForAnimation ? _senderViewForAnimation.contentMode : UIViewContentModeScaleAspectFill;
+    resizableImageView.backgroundColor = [UIColor clearColor];
     [_applicationWindow addSubview:resizableImageView];
     _senderViewForAnimation.hidden = YES;
     
@@ -411,8 +390,7 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
         fadeView.backgroundColor = self.useWhiteBackgroundColor ? [UIColor whiteColor] : [UIColor blackColor];
     } completion:nil];
     
-    float scaleFactor = (imageFromView ? imageFromView.size.width : screenWidth) / screenWidth;
-    CGRect finalImageViewFrame = CGRectMake(0, (screenHeight/2)-((imageFromView.size.height / scaleFactor)/2), screenWidth, imageFromView.size.height / scaleFactor);
+    CGRect finalImageViewFrame = [self animationFrameForImage:imageFromView presenting:YES scrollView:nil];
     
     if(_usePopAnimation)
     {
@@ -438,22 +416,16 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
         imageFromView = [scrollView.photo placeholderImage];
     }
     
-    //imageFromView = [self rotateImageToCurrentOrientation:imageFromView];
-    
-    CGRect screenBound = [[UIScreen mainScreen] bounds];
-    CGFloat screenWidth = screenBound.size.width;
-    CGFloat screenHeight = screenBound.size.height;
-    
-    float scaleFactor = imageFromView.size.width / screenWidth;
-    
-    UIView *fadeView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
+    UIView *fadeView = [[UIView alloc] initWithFrame:_applicationWindow.bounds];
     fadeView.backgroundColor = self.useWhiteBackgroundColor ? [UIColor whiteColor] : [UIColor blackColor];
     fadeView.alpha = fadeAlpha;
     [_applicationWindow addSubview:fadeView];
     
+    CGRect imageViewFrame = [self animationFrameForImage:imageFromView presenting:NO scrollView:scrollView];
+    
     UIImageView *resizableImageView = [[UIImageView alloc] initWithImage:imageFromView];
-    resizableImageView.frame = (imageFromView) ? CGRectMake(0, (screenHeight/2)-((imageFromView.size.height / scaleFactor)/2)+scrollView.frame.origin.y, screenWidth, imageFromView.size.height / scaleFactor) : CGRectZero;
-    resizableImageView.contentMode = UIViewContentModeScaleAspectFill;
+    resizableImageView.frame = imageViewFrame;
+    resizableImageView.contentMode = _senderViewForAnimation ? _senderViewForAnimation.contentMode : UIViewContentModeScaleAspectFill;
     resizableImageView.backgroundColor = [UIColor clearColor];
     resizableImageView.clipsToBounds = YES;
     [_applicationWindow addSubview:resizableImageView];
@@ -476,20 +448,53 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
         self.view.backgroundColor = [UIColor clearColor];
     } completion:nil];
     
+    CGRect senderViewOriginalFrame = _senderViewForAnimation.superview ? [_senderViewForAnimation.superview convertRect:_senderViewForAnimation.frame toView:nil] : _senderViewOriginalFrame;
+    
     if(_usePopAnimation)
     {
         [self animateView:resizableImageView
-                  toFrame:_senderViewOriginalFrame
+                  toFrame:senderViewOriginalFrame
                completion:completion];
     }
     else
     {
         [UIView animateWithDuration:_animationDuration animations:^{
-            resizableImageView.layer.frame = _senderViewOriginalFrame;
+            resizableImageView.layer.frame = senderViewOriginalFrame;
         } completion:^(BOOL finished) {
             completion();
         }];
     }
+}
+
+- (CGRect)animationFrameForImage:(UIImage *)image presenting:(BOOL)presenting scrollView:(UIScrollView *)scrollView
+{
+    if (!image) {
+        return CGRectZero;
+    }
+    
+    CGSize imageSize = image.size;
+    
+    CGFloat maxWidth = CGRectGetWidth(_applicationWindow.bounds);
+    CGFloat maxHeight = CGRectGetHeight(_applicationWindow.bounds);
+    
+    CGRect animationFrame = CGRectZero;
+    
+    CGFloat aspect = imageSize.width / imageSize.height;
+    if (maxWidth / aspect <= maxHeight) {
+        animationFrame.size = CGSizeMake(maxWidth, maxWidth / aspect);
+    }
+    else {
+        animationFrame.size = CGSizeMake(maxHeight * aspect, maxHeight);
+    }
+    
+    animationFrame.origin.x = roundf((maxWidth - animationFrame.size.width) / 2.0f);
+    animationFrame.origin.y = roundf((maxHeight - animationFrame.size.height) / 2.0f);
+    
+    if (!presenting) {
+        animationFrame.origin.y += scrollView.frame.origin.y;
+    }
+    
+    return animationFrame;
 }
 
 #pragma mark - Genaral
@@ -700,7 +705,7 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
 #pragma mark - Status Bar
 
 - (UIStatusBarStyle)preferredStatusBarStyle {
-    return _useWhiteBackgroundColor ? 1 : 0;
+    return _useWhiteBackgroundColor ? UIStatusBarStyleDefault : UIStatusBarStyleLightContent;
 }
 
 - (BOOL)prefersStatusBarHidden {
@@ -1287,7 +1292,15 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
 				selfBlock.activityViewController = nil;
 			};
 			
-            [self presentViewController:self.activityViewController animated:YES completion:nil];
+			if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+				[self presentViewController:self.activityViewController animated:YES completion:nil];
+			}
+			else { // iPad
+				UIPopoverController *popover = [[UIPopoverController alloc] initWithContentViewController:self.activityViewController];
+				[popover presentPopoverFromRect:CGRectMake(self.view.frame.size.width/2, self.view.frame.size.height/4, 0, 0)
+										 inView:self.view permittedArrowDirections:UIPopoverArrowDirectionAny
+									   animated:YES];
+			}
         }
         else
         {
@@ -1301,10 +1314,10 @@ NSLocalizedStringFromTableInBundle((key), nil, [NSBundle bundleWithPath:[[NSBund
             self.actionsSheet.cancelButtonIndex = [self.actionsSheet addButtonWithTitle:IDMPhotoBrowserLocalizedStrings(@"Cancel")];
             self.actionsSheet.actionSheetStyle = UIActionSheetStyleBlackTranslucent;
             
-            if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
-                [_actionsSheet showFromBarButtonItem:sender animated:YES];
+            if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
+				[_actionsSheet showInView:self.view];
             } else {
-                [_actionsSheet showInView:self.view];
+                [_actionsSheet showFromBarButtonItem:sender animated:YES];
             }
         }
         

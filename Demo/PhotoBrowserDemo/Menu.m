@@ -241,7 +241,7 @@
             browser.rightArrowImage         = [UIImage imageNamed:@"IDMPhotoBrowser_customArrowRight.png"];
             browser.leftArrowSelectedImage  = [UIImage imageNamed:@"IDMPhotoBrowser_customArrowLeftSelected.png"];
             browser.rightArrowSelectedImage = [UIImage imageNamed:@"IDMPhotoBrowser_customArrowRightSelected.png"];
-            browser.doneButtonImage         = [UIImage imageNamed:@"IDMPhotoBrowser_customDoneButton.png"];
+            browser.doneButtonImage         = [UIImage imageNamed:@"Close"];
             browser.view.tintColor          = [UIColor orangeColor];
             browser.progressTintColor       = [UIColor orangeColor];
             browser.trackTintColor          = [UIColor colorWithWhite:0.8 alpha:1];
